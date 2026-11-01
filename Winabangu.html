@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wina Bwangu - FinTech Management System</title>
+  <!-- Chart.js CDN for Dashboard Visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-dark: #121212;
+      --card-bg: #1e1e24;
+      --accent-green: #00e676;
+      --accent-blue: #29b6f6;
+      --text-main: #e0e0e0;
+      --text-muted: #a0a0a0;
+      --border-color: #333340;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); padding: 20px; }
+
+    /* Login Modal Overlay */
+    #loginModal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(5px);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 2000;
+    }
+    .login-card {
+      background: var(--card-bg);
+      padding: 30px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      width: 100%; max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .login-card h2 { color: var(--accent-green); margin-bottom: 5px; text-align: center; }
+    .login-card p { color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-bottom: 20px; }
+
+    header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 25px; }
+    header h1 { color: var(--accent-green); font-size: 1.8rem; }
+
+    .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tab-btn { background: #2a2a35; color: var(--text-muted); border: none; padding: 10px 20px; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.3s; }
+    .tab-btn.active, .tab-btn:hover { background: var(--accent-green); color: #000; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Forms & Cards */
+    .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .card { background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid var(--border-color); }
+    .card h3 { color: var(--accent-blue); margin-bottom: 15px; }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: var(--text-muted); }
+    .form-group input, .form-group select { width: 100%; padding: 10px; background: #121218; border: 1px solid var(--border-color); color: #fff; border-radius: 5px; }
+    .form-group input[readonly] { background: #1a1a22; color: var(--accent-green); font-weight: bold; }
+
+    .btn-submit { width: 100%; background: var(--accent-green); color: #000; padding: 12px; border: none; font-weight: bold; border-radius: 5px; cursor: pointer; }
+    .btn-submit:hover { opacity: 0.9; }
+
+    /* Summary Stats */
+    .stat-box { text-align: center; padding: 15px; background: #14141a; border-radius: 8px; margin-bottom: 15px; }
+    .stat-val { font-size: 1.6rem; font-weight: bold; color: var(--accent-green); margin-top: 5px; }
+
+    /* Progress & Data Bars */
+    .bar-container { background: #2a2a35; border-radius: 10px; height: 12px; width: 100%; overflow: hidden; margin-top: 5px; }
+    .bar-fill { height: 100%; background: var(--accent-blue); transition: width 0.4s ease; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.88rem; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background: #15151c; color: var(--accent-blue); }
+
+    /* Toast Notification */
+    #toast { visibility: hidden; min-width: 250px; background-color: var(--accent-green); color: #000; font-weight: bold; text-align: center; border-radius: 5px; padding: 12px; position: fixed; z-index: 3000; right: 30px; bottom: 30px; }
+    #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+
+    @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+    @keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN MODAL -->
+  <div id="loginModal">
+    <div class="login-card">
+      <h2>Wina Bwangu</h2>
+      <p>FinTech Portal Agent Authentication</p>
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label>Agent Username</label>
+          <input type="text" id="loginUser" placeholder="e.g. agent123" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPass" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn-submit">Login to System</button>
+      </form>
+    </div>
+  </div>
+
+  <header>
+    <h1>Wina Bwangu FinTech Portal</h1>
+    <div style="color: var(--text-muted); font-size: 0.9rem;">
+      Logged in as: <span id="activeUser" style="color:var(--accent-green)">Guest</span>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('transaction-tab')">New Transaction</button>
+    <button class="tab-btn" onclick="switchTab('dashboard-tab')">Executive Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('records-tab')">Transaction Log</button>
+  </div>
+
+  <!-- TAB 1: New Transaction Form -->
+  <div id="transaction-tab" class="tab-content active">
+    <div class="grid-container">
+      <div class="card">
+        <h3>Record Mobile Booth Transaction</h3>
+        <form id="txnForm" onsubmit="handleFormSubmit(event)">
+          <div class="form-group">
+            <label>Transaction ID (Auto-Generated)</label>
+            <input type="text" id="txnId" readonly>
+          </div>
+
+          <div class="form-group">
+            <label>Mobile Booth</label>
+            <select id="boothSelect" onchange="onBoothChange()" required>
+              <option value="">-- Select Booth --</option>
+              <option value="Wina1">Wina1</option>
+              <option value="Wina2">Wina2</option>
+              <option value="Wina3">Wina3</option>
+              <option value="Wina4">Wina4</option>
+              <option value="Wina5">Wina5</option>
+              <option value="Wina6">Wina6</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="locationInput" readonly placeholder="Auto-populated">
+          </div>
+
+          <div class="form-group">
+            <label>Available Services</label>
+            <select id="serviceSelect" onchange="onServiceChange()" required>
+              <option value="">-- Select Booth First --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Revenue per Kwacha (Rate)</label>
+            <input type="text" id="rateInput" readonly placeholder="0.00">
+          </div>
+
+          <div class="form-group">
+            <label>Transaction Amount (ZMW)</label>
+            <input type="number" id="amountInput" min="1" step="any" placeholder="e.g. 1500" required>
+          </div>
+
+          <button type="submit" class="btn-submit">Execute & Save Transaction</button>
+        </form>
+      </div>
+
+      <!-- Quick Summary Card -->
+      <div class="card">
+        <h3>Live Booth Performance Overview</h3>
+        <div class="stat-box">
+          <div>Total Transactions Recorded</div>
+          <div class="stat-val" id="quickTxnCount">0</div>
+        </div>
+        <div class="stat-box">
+          <div>Cumulative Revenue (ZMW)</div>
+          <div class="stat-val" id="quickRevenue">K0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: Executive Dashboard -->
+  <div id="dashboard-tab" class="tab-content">
+    <div class="grid-container">
+      <div class="card">
+        <h3>Company Financial Overview</h3>
+        <div class="stat-box">
+          <div>Total Revenue Generated</div>
+          <div class="stat-val" id="dashTotalRevenue">K0.00</div>
+        </div>
+        <div class="stat-box">
+          <div>Total Required Monthly Capital Credit</div>
+          <div class="stat-val" id="dashTotalCapital" style="color: var(--accent-blue);">K740,000.00</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Financial Summary Breakdown</h3>
+        <canvas id="financialPieChart" style="max-height: 220px;"></canvas>
+      </div>
+    </div>
+
+    <!-- Service Monthly Limits Table -->
+    <div class="card" style="margin-top: 20px;">
+      <h3>Service Limits & Remaining Credit Monitoring</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Monthly Limit (ZMW)</th>
+            <th>Cumulative Processed</th>
+            <th>Remaining Balance</th>
+            <th>Capacity Usage Bar</th>
+          </tr>
+        </thead>
+        <tbody id="serviceLimitsTable"></tbody>
+      </table>
+    </div>
+
+    <!-- Cumulative Revenue per Booth -->
+    <div class="card" style="margin-top: 20px;">
+      <h3>Booth Performance Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Booth</th>
+            <th>Location</th>
+            <th>Transaction Count</th>
+            <th>Cumulative Revenue (ZMW)</th>
+          </tr>
+        </thead>
+        <tbody id="boothSummaryTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 3: Transaction Log -->
+  <div id="records-tab" class="tab-content">
+    <div class="card">
+      <h3>All Recorded Transactions</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Transaction ID</th>
+            <th>Booth</th>
+            <th>Location</th>
+            <th>Service</th>
+            <th>Amount (ZMW)</th>
+            <th>Tax (16%)</th>
+            <th>Net After Tax</th>
+            <th>Revenue</th>
+          </tr>
+        </thead>
+        <tbody id="fullLogTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast">Transaction Saved Successfully!</div>
+
+  <script>
+    // Master Data
+    const boothData = {
+      "Wina1": { location: "Lusaka CPD", services: ["Airtel Money", "MTN Money", "Zamtel Money", "Zanaco", "FNB"] },
+      "Wina2": { location: "Libala", services: ["Airtel Money", "MTN Money", "Zamtel Money", "FNB"] },
+      "Wina3": { location: "Kabwata", services: ["Airtel Money", "MTN Money", "Zamtel Money", "Zanaco", "FNB"] },
+      "Wina4": { location: "Mandevu", services: ["Airtel Money", "MTN Money", "Zamtel Money"] },
+      "Wina5": { location: "Woodlands", services: ["Airtel Money", "MTN Money", "Zanaco", "FNB"] },
+      "Wina6": { location: "Matero East", services: ["Airtel Money", "MTN Money", "Zamtel Money"] }
+    };
+
+    const serviceRates = {
+      "Airtel Money": { limit: 350000, rate: 0.05 },
+      "MTN Money":    { limit: 160000, rate: 0.06 },
+      "Zamtel Money": { limit: 70000,  rate: 0.045 },
+      "Zanaco":       { limit: 80000,  rate: 0.035 },
+      "FNB":          { limit: 80000,  rate: 0.04 }
+    };
+
+    let transactions = [];
+    let transactionCounter = 1;
+    let pieChartInstance = null;
+
+    window.onload = function() {
+      generateTxnId();
+      renderDashboard();
+    };
+
+    // LOGIN FUNCTION
+    function handleLogin(e) {
+      e.preventDefault();
+      const user = document.getElementById('loginUser').value;
+      document.getElementById('activeUser').textContent = user;
+      document.getElementById('loginModal').style.display = 'none';
+      showToast("Welcome, " + user + "!");
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
+      if (tabId === 'dashboard-tab') renderDashboard();
+    }
+
+    function generateTxnId() {
+      const paddedNum = String(transactionCounter).padStart(7, '0');
+      document.getElementById('txnId').value = `WB${paddedNum}`;
+    }
+
+    function onBoothChange() {
+      const booth = document.getElementById('boothSelect').value;
+      const locationInput = document.getElementById('locationInput');
+      const serviceSelect = document.getElementById('serviceSelect');
+      const rateInput = document.getElementById('rateInput');
+
+      serviceSelect.innerHTML = '<option value="">-- Select Service --</option>';
+      rateInput.value = '';
+
+      if (booth && boothData[booth]) {
+        locationInput.value = boothData[booth].location;
+        boothData[booth].services.forEach(svc => {
+          const opt = document.createElement('option');
+          opt.value = svc;
+          opt.textContent = svc;
+          serviceSelect.appendChild(opt);
+        });
+      } else {
+        locationInput.value = '';
+      }
+    }
+
+    function onServiceChange() {
+      const service = document.getElementById('serviceSelect').value;
+      const rateInput = document.getElementById('rateInput');
+      if (service && serviceRates[service]) {
+        rateInput.value = serviceRates[service].rate;
+      } else {
+        rateInput.value = '';
+      }
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      
+      const id = document.getElementById('txnId').value;
+      const booth = document.getElementById('boothSelect').value;
+      const location = document.getElementById('locationInput').value;
+      const service = document.getElementById('serviceSelect').value;
+      const rate = parseFloat(document.getElementById('rateInput').value);
+      const amount = parseFloat(document.getElementById('amountInput').value);
+
+      const tax = amount * 0.16;
+      const netAmount = amount - tax;
+      const revenue = amount * rate;
+
+      transactions.push({ id, booth, location, service, rate, amount, tax, netAmount, revenue });
+      
+      showToast("Transaction " + id + " saved!");
+
+      transactionCounter++;
+      document.getElementById('txnForm').reset();
+      document.getElementById('locationInput').value = '';
+      document.getElementById('serviceSelect').innerHTML = '<option value="">-- Select Booth First --</option>';
+      generateTxnId();
+
+      updateQuickStats();
+      renderDashboard();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = "show";
+      setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+    }
+
+    function updateQuickStats() {
+      document.getElementById('quickTxnCount').textContent = transactions.length;
+      const totalRev = transactions.reduce((sum, t) => sum + t.revenue, 0);
+      document.getElementById('quickRevenue').textContent = `K${totalRev.toFixed(2)}`;
+    }
+
+    function renderDashboard() {
+      let totalRevenue = 0;
+      const serviceTotals = { "Airtel Money": 0, "MTN Money": 0, "Zamtel Money": 0, "Zanaco": 0, "FNB": 0 };
+      const boothStats = {
+        "Wina1": { loc: "Lusaka CPD", count: 0, revenue: 0 },
+        "Wina2": { loc: "Libala", count: 0, revenue: 0 },
+        "Wina3": { loc: "Kabwata", count: 0, revenue: 0 },
+        "Wina4": { loc: "Mandevu", count: 0, revenue: 0 },
+        "Wina5": { loc: "Woodlands", count: 0, revenue: 0 },
+        "Wina6": { loc: "Matero East", count: 0, revenue: 0 }
+      };
+
+      transactions.forEach(t => {
+        totalRevenue += t.revenue;
+        if (serviceTotals[t.service] !== undefined) serviceTotals[t.service] += t.amount;
+        if (boothStats[t.booth]) {
+          boothStats[t.booth].count++;
+          boothStats[t.booth].revenue += t.revenue;
+        }
+      });
+
+      document.getElementById('dashTotalRevenue').textContent = `K${totalRevenue.toFixed(2)}`;
+
+      const limitsBody = document.getElementById('serviceLimitsTable');
+      limitsBody.innerHTML = '';
+      for (const [svc, info] of Object.entries(serviceRates)) {
+        const processed = serviceTotals[svc];
+        const remaining = info.limit - processed;
+        const pctUsed = Math.min(100, (processed / info.limit) * 100).toFixed(1);
+
+        limitsBody.innerHTML += `
+          <tr>
+            <td><strong>${svc}</strong></td>
+            <td>K${info.limit.toLocaleString()}</td>
+            <td>K${processed.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td style="color: ${remaining < 0 ? '#ff5252' : 'var(--text-main)'}">K${remaining.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+            <td>
+              <div>${pctUsed}%</div>
+              <div class="bar-container">
+                <div class="bar-fill" style="width: ${pctUsed}%; background: ${pctUsed > 90 ? '#ff5252' : 'var(--accent-blue)'}"></div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      const boothBody = document.getElementById('boothSummaryTable');
+      boothBody.innerHTML = '';
+      for (const [bName, bData] of Object.entries(boothStats)) {
+        boothBody.innerHTML += `
+          <tr>
+            <td><strong>${bName}</strong></td>
+            <td>${bData.loc}</td>
+            <td>${bData.count}</td>
+            <td>K${bData.revenue.toFixed(2)}</td>
+          </tr>
+        `;
+      }
+
+      const logBody = document.getElementById('fullLogTable');
+      logBody.innerHTML = '';
+      transactions.forEach(t => {
+        logBody.innerHTML += `
+          <tr>
+            <td>${t.id}</td>
+            <td>${t.booth}</td>
+            <td>${t.location}</td>
+            <td>${t.service}</td>
+            <td>K${t.amount.toFixed(2)}</td>
+            <td>K${t.tax.toFixed(2)}</td>
+            <td>K${t.netAmount.toFixed(2)}</td>
+            <td style="color:var(--accent-green)">K${t.revenue.toFixed(2)}</td>
+          </tr>
+        `;
+      });
+
+      renderChart(totalRevenue, 740000);
+    }
+
+    function renderChart(revenue, capital) {
+      const ctx = document.getElementById('financialPieChart').getContext('2d');
+      if (pieChartInstance) pieChartInstance.destroy();
+
+      pieChartInstance = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: ['Total Revenue Generated', 'Required Capital Credit'],
+          datasets: [{
+            data: [revenue, capital],
+            backgroundColor: ['#00e676', '#29b6f6']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: '#e0e0e0' } } }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
